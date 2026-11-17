@@ -9,7 +9,7 @@ import {
 } from '../utils/account-storage.js'
 
 const MAX_NOTICE_LENGTH = 5000
-const API_BASE_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '')
+const API_BASE_URL = (import.meta.env.VITE_API_URL ?? '').trim().replace(/\/+$/, '')
 const examples = [
   {
     label: 'Water shutdown',
@@ -93,7 +93,23 @@ function Home() {
       }
 
       if (response.status === 401) {
-        setFeedback('Please sign in again.')
+        const errorData = await response.json().catch(() => null)
+        setFeedback(
+          typeof errorData?.error === 'string'
+            ? errorData.error
+            : 'Please sign in again.',
+        )
+        setHasError(true)
+        return
+      }
+
+      if (response.status === 503) {
+        const errorData = await response.json().catch(() => null)
+        setFeedback(
+          typeof errorData?.error === 'string'
+            ? errorData.error
+            : "We couldn't simplify this notice right now. Please try again.",
+        )
         setHasError(true)
         return
       }

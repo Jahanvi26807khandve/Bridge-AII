@@ -23,12 +23,13 @@ const host = process.env.HOST ?? '127.0.0.1'
 const port = Number(process.env.PORT ?? 3000)
 const allowedOrigins = (process.env.ALLOWED_ORIGIN ?? '')
   .split(',')
-  .map((origin) => origin.trim())
+  .map((origin) => origin.trim().replace(/\/+$/, ''))
   .filter(Boolean)
 const corsOrigins = allowedOrigins.length
   ? allowedOrigins
   : ['http://localhost:5173']
 const defaultModel = 'gemini-3.8-flash'
+const defaultFallbackModel = 'gemini-2.5-flash-lite'
 const geminiTimeoutMs = 30_000
 const geminiRetryDelayMs = 2_000
 const busyErrorMessage = 'The service is busy. Please try again in a minute.'
@@ -168,14 +169,16 @@ app.post('/api/simplify', authenticateOptionalUser, simplifyRateLimit, async (re
     return response.status(502).json({ error: 'Gemini API key is not configured.' })
   }
 
+  const retryableStatus = (s) => s === 429 || s === 503 || s === 504
+
   let generatedText
   try {
     const ai = new GoogleGenAI({
       apiKey: process.env.GEMINI_API_KEY,
       httpOptions: { timeout: geminiTimeoutMs },
     })
-    const generateContent = () => ai.models.generateContent({
-      model: process.env.GEMINI_MODEL || defaultModel,
+    const generateContent = (model) => ai.models.generateContent({
+      model,
       contents: text,
       config: {
         temperature: 0.2,
@@ -193,21 +196,40 @@ app.post('/api/simplify', authenticateOptionalUser, simplifyRateLimit, async (re
         },
       },
     })
+
+    const primaryModel = process.env.GEMINI_MODEL || defaultModel
+    const fallbackModel = process.env.GEMINI_FALLBACK_MODEL || defaultFallbackModel
+
     let result
     try {
-      result = await generateContent()
+      result = await generateContent(primaryModel)
+      console.log(`Gemini responded using model: ${primaryModel}`)
     } catch (error) {
       const status = logGeminiError(error)
-      if (status !== 429 && status !== 503) {
+      if (!retryableStatus(status)) {
         return response.status(502).json({ error: 'Gemini API request failed.' })
       }
 
+      // Retry once with the primary model after a delay
       await new Promise((resolve) => setTimeout(resolve, geminiRetryDelayMs))
       try {
-        result = await generateContent()
+        result = await generateContent(primaryModel)
+        console.log(`Gemini responded using model: ${primaryModel} (retry)`)
       } catch (retryError) {
-        logGeminiError(retryError)
-        return response.status(503).json({ error: busyErrorMessage })
+        const retryStatus = logGeminiError(retryError)
+        if (!retryableStatus(retryStatus)) {
+          return response.status(502).json({ error: 'Gemini API request failed.' })
+        }
+
+        // Try once with the fallback model
+        try {
+          result = await generateContent(fallbackModel)
+          console.log(`Gemini responded using fallback model: ${fallbackModel}`)
+        } catch (fallbackError) {
+          console.error(`Gemini fallback model also failed: ${fallbackModel}`)
+          logGeminiError(fallbackError)
+          return response.status(503).json({ error: busyErrorMessage })
+        }
       }
     }
     generatedText = result.text
@@ -236,6 +258,11 @@ if (!process.env.GEMINI_API_KEY) {
 
 if (!process.env.FIREBASE_PROJECT_ID) {
   console.warn('FIREBASE_PROJECT_ID is missing.')
+}
+
+if (process.env.GEMINI_MODEL && /\s/.test(process.env.GEMINI_MODEL)) {
+  console.warn(`GEMINI_MODEL contains whitespace and is not a valid model name. Using default: ${defaultModel}`)
+  delete process.env.GEMINI_MODEL
 }
 
 app.listen(port, host, () => {
