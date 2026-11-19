@@ -28,8 +28,8 @@ const allowedOrigins = (process.env.ALLOWED_ORIGIN ?? '')
 const corsOrigins = allowedOrigins.length
   ? allowedOrigins
   : ['http://localhost:5173']
-const defaultModel = 'gemini-3.8-flash'
-const defaultFallbackModel = 'gemini-2.5-flash-lite'
+const defaultModel = 'gemini-flash-lite-latest'
+const defaultFallbackModel = 'gemini-3.5-flash-lite'
 const geminiTimeoutMs = 30_000
 const geminiRetryDelayMs = 2_000
 const busyErrorMessage = 'The service is busy. Please try again in a minute.'
