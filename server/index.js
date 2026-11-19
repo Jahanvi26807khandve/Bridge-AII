@@ -94,7 +94,8 @@ app.get('/api/health', (_request, response) => {
 })
 
 function getFirebaseAdminAuth() {
-  const projectId = process.env.FIREBASE_PROJECT_ID
+  const envProjectId = process.env.FIREBASE_PROJECT_ID
+  const projectId = (envProjectId === 'bridge-ai-6adc6' || !envProjectId) ? 'bridge-f63f2' : envProjectId
   if (!projectId) {
     throw new Error('FIREBASE_PROJECT_ID is not configured.')
   }

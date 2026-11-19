@@ -2,10 +2,10 @@ import { getApp, getApps, initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY?.trim(),
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN?.trim(),
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID?.trim(),
-  appId: import.meta.env.VITE_FIREBASE_APP_ID?.trim(),
+  apiKey: (import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyCruERXNQD4t_f1xisou46FNSQ5UUblwLM')?.trim(),
+  authDomain: (import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'bridge-f63f2.firebaseapp.com')?.trim(),
+  projectId: (import.meta.env.VITE_FIREBASE_PROJECT_ID || 'bridge-f63f2')?.trim(),
+  appId: (import.meta.env.VITE_FIREBASE_APP_ID || '1:815698849988:web:93547eb10fa85e7c45d991')?.trim(),
 }
 
 const warning =

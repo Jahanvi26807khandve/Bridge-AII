@@ -9,7 +9,10 @@ import {
 } from '../utils/account-storage.js'
 
 const MAX_NOTICE_LENGTH = 5000
-const API_BASE_URL = (import.meta.env.VITE_API_URL ?? '').trim().replace(/\/+$/, '')
+const API_BASE_URL = (
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD ? 'https://bridge-ai-gm66.onrender.com' : '')
+).trim().replace(/\/+$/, '')
 const examples = [
   {
     label: 'Water shutdown',
@@ -115,6 +118,12 @@ function Home() {
       }
 
       if (!response.ok) {
+        const errorData = await response.json().catch(() => null)
+        if (typeof errorData?.error === 'string') {
+          setFeedback(errorData.error)
+          setHasError(true)
+          return
+        }
         throw new Error(`Request failed with status ${response.status}`)
       }
 
