@@ -35,6 +35,23 @@ const geminiRetryDelayMs = 2_000
 const busyErrorMessage = 'The service is busy. Please try again in a minute.'
 const supportedLanguages = ['english', 'hindi', 'marathi']
 const supportedLevels = ['simple', 'detailed']
+
+function isAllowedOrigin(origin) {
+  if (!origin) return false
+  if (corsOrigins.includes(origin)) return true
+  try {
+    const { hostname } = new URL(origin)
+    if (
+      hostname.endsWith('.vercel.app') ||
+      hostname.endsWith('.netlify.app') ||
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1'
+    ) {
+      return true
+    }
+  } catch {}
+  return false
+}
 const resultInstructions = {
   english: {
     simple: 'Write the values of summary, whoItAffects, deadlines, and actionSteps in English. Keep the JSON keys exactly in English. Keep dates, times, amounts, names, and numbers exactly as written in the notice. Simple means very short sentences.',
@@ -52,7 +69,7 @@ const resultInstructions = {
 
 app.use((request, response, next) => {
   const origin = request.get('Origin')
-  if (origin && corsOrigins.includes(origin)) {
+  if (origin && isAllowedOrigin(origin)) {
     response.setHeader('Access-Control-Allow-Origin', origin)
     response.setHeader('Vary', 'Origin')
     if (request.method === 'OPTIONS') {
@@ -73,7 +90,7 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 }
 
 app.get('/api/health', (_request, response) => {
-  response.status(200).json({ status: 'ok' })
+  response.status(200).json({ status: 'ok', version: '1.0.2', defaultModel })
 })
 
 function getFirebaseAdminAuth() {
@@ -197,8 +214,14 @@ app.post('/api/simplify', authenticateOptionalUser, simplifyRateLimit, async (re
       },
     })
 
-    const primaryModel = process.env.GEMINI_MODEL || defaultModel
-    const fallbackModel = process.env.GEMINI_FALLBACK_MODEL || defaultFallbackModel
+    let primaryModel = process.env.GEMINI_MODEL || defaultModel
+    if (['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-1.5-flash'].includes(primaryModel)) {
+      primaryModel = defaultModel
+    }
+    let fallbackModel = process.env.GEMINI_FALLBACK_MODEL || defaultFallbackModel
+    if (['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-1.5-flash'].includes(fallbackModel)) {
+      fallbackModel = defaultFallbackModel
+    }
 
     let result
     try {
