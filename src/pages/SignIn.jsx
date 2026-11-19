@@ -410,7 +410,15 @@ function SignIn() {
       }
 
       if (!isFirebaseConfigured) {
-        setGoogleError('Google sign-in is not configured.')
+        setGoogleError('Firebase is not configured. Please set the VITE_FIREBASE_* environment variables.')
+      } else if (error?.code === 'auth/operation-not-allowed') {
+        setGoogleError(
+          'Google Sign-In is not enabled in Firebase Console. Enable it under Authentication > Sign-in method.',
+        )
+      } else if (error?.code === 'auth/unauthorized-domain') {
+        setGoogleError(
+          `This domain (${window.location.hostname}) is not authorized in Firebase Console. Add it under Authentication > Settings > Authorized domains.`,
+        )
       } else if (error?.code === 'auth/popup-blocked') {
         setGoogleError(
           'Your browser blocked the Google sign-in popup. Allow popups and try again.',
